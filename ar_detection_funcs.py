@@ -101,10 +101,6 @@ def get_percentile(scheme, years, scan_extent, percentile, hemisphere='ant', sou
     long_varname, varname = scheme_map[scheme]
 
     for month in range(1, 13):
-        if os.path.exists(os.path.join(source_path, f"{scheme}_per{percentile}_{month}_{hemisphere}.nc")):
-            print(f"Percentile for month {month} already computed. Skipping this one.")
-            continue
-    
         combined_ds = None
         for year in years:
             try:
@@ -214,7 +210,7 @@ def filter_ARs_varying_length(ds, base_len=1000, max_len=2000, lat_min=-85, lat_
             best_poly = None
             best_r_squared = -np.inf
         
-            for degree in range(3, 0, -1):  # Test polynomial degrees from 3 down to 1
+            for degree in [3, 2, 1, 0]:  # Test polynomial degrees from 3 down to 1
                 try:
                     poly = Polynomial.fit(latitudes, longitudes, deg=degree)
                     predicted_lons = poly(latitudes)
@@ -233,11 +229,12 @@ def filter_ARs_varying_length(ds, base_len=1000, max_len=2000, lat_min=-85, lat_
         
             if best_poly is None:
                 continue  # Skip if no valid polynomial was found
-        
-        ar_length = polynomial_length_in_km(best_poly, lat_min_AR, lat_max_AR)
-    
-        if ar_length >= required_length:
-            out[t, coords[:, 0], coords[:, 1]] = 1
+            try:
+                ar_length = polynomial_length_in_km(best_poly, lat_min_AR, lat_max_AR)
+            except TypeError:
+                print(f"time : {t}, label_id : {label_id}")
+            if ar_length >= required_length:
+                out[t, coords[:, 0], coords[:, 1]] = 1
 
     unique_longitudes = np.unique(ds['longitude'].values)
     outy = out[:, :, :len(unique_longitudes)] + out[:, :, len(unique_longitudes):]
@@ -270,27 +267,36 @@ def filter_ARs_meridional_length(ds, min_lat_extent=20):
     xarray.DataArray
         Filtered AR binary dataset with the same shape as the input.
     """
-    from skimage.measure import label, regionprops
-    
+    from scipy.ndimage import label
 
+    # Calculate the required number of pixels for the minimum latitude extent
     lat_resolution = abs(ds.latitude.diff(dim='latitude').min().values)
     required_pixels = int(min_lat_extent / lat_resolution)
 
+    # Initialize output array
     out = np.zeros_like(ds, dtype=int)
 
     for t in range(ds.sizes['time']):
-        labeled, num_features = label(ds.isel(time=t).values, connectivity=2)
+        # Label connected regions in the binary slice
+        labeled, num_features = label(ds.isel(time=t).values)
 
-        for region in regionprops(labeled):
-            if (region.bbox[2] - region.bbox[0]) >= required_pixels:
-                coords = region.coords
-                out[t, coords[:, 0], coords[:, 1]] = 1
+        # Iterate over each labeled region
+        for label_id in range(1, num_features + 1):
+            region_coords = np.argwhere(labeled == label_id)
+
+            # Get the latitude indices for the region
+            region_lat_indices = region_coords[:, 0]
+
+            # Check if the region spans the required number of pixels in latitude
+            if (region_lat_indices.max() - region_lat_indices.min() + 1) >= required_pixels:
+                out[t, region_coords[:, 0], region_coords[:, 1]] = 1
 
     # Handle longitude wrapping
     unique_longitudes = np.unique(ds['longitude'].values)
     outy = out[:, :, :len(unique_longitudes)] + out[:, :, len(unique_longitudes):]
     outy[outy > 1] = 1
-     
+
+    # Create an xarray DataArray with the same coordinates and attributes as the input
     ds_short = ds.groupby('longitude').max(dim='longitude')
     out_xr = xr.DataArray(
         data=outy,
