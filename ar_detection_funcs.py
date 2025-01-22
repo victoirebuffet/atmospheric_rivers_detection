@@ -199,6 +199,8 @@ def filter_ARs_varying_length(ds, base_len=1000, max_len=2000, lat_min=-85, lat_
 
         for label_id in range(1, num_features + 1):
             coords = np.array(np.where(labeled == label_id)).T
+            if len(coords) < 300:
+                continue
             latitudes = ds.latitude.values[coords[:, 0]]
 
             lat_min_AR, lat_max_AR = latitudes.min(), latitudes.max()
