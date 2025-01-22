@@ -101,6 +101,10 @@ def get_percentile(scheme, years, scan_extent, percentile, hemisphere='ant', sou
     long_varname, varname = scheme_map[scheme]
 
     for month in range(1, 13):
+        if os.path.exists(os.path.join(source_path, f"{scheme}_per{percentile}_{month}_{hemisphere}.nc")):
+            print(f"Percentile for month {month} already computed. Skipping this one.")
+            continue
+    
         combined_ds = None
         for year in years:
             try:
