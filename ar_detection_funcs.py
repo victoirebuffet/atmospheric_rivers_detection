@@ -405,6 +405,6 @@ def extract_ARs(scheme, year, percentile, scan_extent, hemisphere='ant', dir_pat
     # Save combined dataset
     output_filename = os.path.join(
         dir_path,
-        f"ar_tag_{year}_era5_{scheme.replace(' ', '_')}_{percentile}p_{scan_extent[0]}-{scan_extent[-1]}_{hemisphere}{adapt}.nc4"
+        f"ar_tag_{year}_era5_{scheme.replace(' ', '_')}_{percentile}p_{np.abs(scan_extent[0])}-{np.abs(scan_extent[-1])}_{hemisphere}{adapt}.nc4"
     )
     save_to_netcdf(combined_ds, output_filename)
