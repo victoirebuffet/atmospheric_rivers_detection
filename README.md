@@ -1,7 +1,7 @@
 # Atmospheric River Detection Tool
 
 ## Overview
-This tool is designed to detect Atmospheric Rivers (ARs) using two distinct schemes:
+This tool is designed to detect Atmospheric Rivers (ARs) from the ERA5 dataset (Hersbach et al., 2020) using two distinct schemes:
 
 1. **vIVT AR Detection**:
    - Follows the methodology outlined in Wille et al. (2019, 2021).
