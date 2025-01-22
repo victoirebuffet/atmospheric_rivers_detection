@@ -365,7 +365,7 @@ def extract_ARs(scheme, year, percentile, scan_extent, hemisphere='ant', dir_pat
                 ds_open = xr.where(ds_open > 0, ds_open, np.nan)
             
             if adaptative_threshold:
-                adaptative_threshold_ds = xr.open_dataset(f'{source_path}"adaptative_threshold_IWV.nc')
+                adaptative_threshold_ds = xr.open_dataset(f'{source_path}adaptative_threshold_IWV.nc')
                 factor = adaptative_threshold_ds['smoothed_yearly_mean'].sel(year=year)/adaptative_threshold_ds['smoothed_yearly_mean'].mean(dim='year')
                 threshold = ds_per * factor
                 del(adaptative_threshold_ds, factor)
