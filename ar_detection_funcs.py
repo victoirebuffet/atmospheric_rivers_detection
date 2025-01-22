@@ -15,33 +15,37 @@ import glob
 
 
 def compute_adaptative_threshold(years, scan_extent, source_path='.'):
-    scan_extent_sorted = validate_latitudes(scan_extent)
     
-    list_yearly_mean = []
-    
-    # Collect yearly means
-    for year in years:
-        filepath_tcw = os.path.join(source_path, f"total_column_water_{year}_reanaHS.nc")
-        tcw = xr.open_dataset(filepath_tcw)['tcw'].sel(latitude=slice(-scan_extent_sorted[0], -scan_extent_sorted[1]))
-        yearly_mean = tcw.mean().item()  # Convert to scalar
-        list_yearly_mean.append(yearly_mean)
-    
-    # Compute overall mean and smoothed yearly means
-    overall_mean = np.mean(list_yearly_mean)
-    smoothed_yearly_mean = gaussian_filter1d(list_yearly_mean, sigma=2)
-    adjusted_threshold = overall_mean / smoothed_yearly_mean  # Ratio for threshold adjustment
-    
-    # Store results in an xarray.Dataset
-    ds = xr.Dataset(
-        {
-            "yearly_mean": (["year"], list_yearly_mean),
-            "smoothed_yearly_mean": (["year"], smoothed_yearly_mean),
-            "adaptative_threshold": (["year"], adjusted_threshold)
-        },
-        coords={"year": years}
-    )
-    save_to_netcdf(ds, os.path.join(source_path, "adaptative_threshold_IWV.nc"), progress_bar=True)
-    
+    if os.path.exists(os.path.join(source_path, "adaptative_threshold_IWV.nc")):
+        print("Adaptative threshold already computed. Skipping this step.")
+    else:
+        scan_extent_sorted = validate_latitudes(scan_extent)
+        
+        list_yearly_mean = []
+        
+        # Collect yearly means
+        for year in years:
+            filepath_tcw = os.path.join(source_path, f"total_column_water_{year}_reanaHS.nc")
+            tcw = xr.open_dataset(filepath_tcw)['tcw'].sel(latitude=slice(-scan_extent_sorted[0], -scan_extent_sorted[1]))
+            yearly_mean = tcw.mean().item()  # Convert to scalar
+            list_yearly_mean.append(yearly_mean)
+        
+        # Compute overall mean and smoothed yearly means
+        overall_mean = np.mean(list_yearly_mean)
+        smoothed_yearly_mean = gaussian_filter1d(list_yearly_mean, sigma=2)
+        adjusted_threshold = overall_mean / smoothed_yearly_mean  # Ratio for threshold adjustment
+        
+        # Store results in an xarray.Dataset
+        ds = xr.Dataset(
+            {
+                "yearly_mean": (["year"], list_yearly_mean),
+                "smoothed_yearly_mean": (["year"], smoothed_yearly_mean),
+                "adaptative_threshold": (["year"], adjusted_threshold)
+            },
+            coords={"year": years}
+        )
+        save_to_netcdf(ds, os.path.join(source_path, "adaptative_threshold_IWV.nc"), progress_bar=True)
+        
 def validate_latitudes(scan_extent):
     """Validate latitude extents."""
     scan_extent_sorted = sorted([abs(i) for i in scan_extent])
@@ -58,7 +62,7 @@ def get_file_path(source_path, long_varname, year):
     if not matching_files:
         raise FileNotFoundError(f"No files match the pattern: {pattern}")
     
-    return matching_files
+    return matching_files[0]
 
 def load_and_process_dataset(filepath, varname, month, hemisphere, scan_extent_sorted):
     """Load and preprocess dataset for a specific month and hemisphere."""
@@ -88,7 +92,7 @@ def get_percentile(scheme, years, scan_extent, percentile, hemisphere='ant', sou
 
     scheme_map = {
         'vIVT': ('vertical_integral_of_northward_water_vapour_flux', 'p72.162'),
-        'IWV curved ARs': ('total_column_water', 'tcw')
+        'IWV curved': ('total_column_water', 'tcw')
     }
 
     if scheme not in scheme_map:
